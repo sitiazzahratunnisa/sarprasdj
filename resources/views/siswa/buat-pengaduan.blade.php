@@ -60,10 +60,20 @@
                 </select>
             </div>
 
+            {{-- PERBAIKAN: Mengubah input manual menjadi dropdown otomatis dari database --}}
             <div class="mb-3">
                 <label class="form-label fw-500" style="font-size:13px;">Lokasi <span class="text-danger">*</span></label>
-                <input type="text" name="lokasi" class="form-control @error('lokasi') is-invalid @enderror"
-                    placeholder="Contoh: Kelas X-A, Lab IPA, Perpustakaan" value="{{ old('lokasi') }}" required>
+                <select name="lokasi" id="lokasi" class="form-select @error('lokasi') is-invalid @enderror" required>
+                    <option value="" disabled selected>-- Pilih Lokasi Keberadaan Barang --</option>
+                    @foreach($lokasis as $lok)
+                        <option value="{{ $lok->nama_lokasi }}" {{ old('lokasi') == $lok->nama_lokasi ? 'selected' : '' }}>
+                            {{ $lok->nama_lokasi }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('lokasi')
+                    <div class="invalid-feedback" style="display:block;">{{ $message }}</div>
+                @enderror
             </div>
 
             <div class="mb-3">

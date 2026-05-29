@@ -1,5 +1,20 @@
 @extends('layouts.app') {{-- Pastikan kamu punya folder layouts dan file app.blade.php --}}
 
+
+@section('sidebar')
+    <a href="{{ route('siswa.dashboard') }}" class="nav-link">
+        <i class="bi bi-house"></i> Dashboard
+    </a>
+    <a href="{{ route('siswa.pengaduan.create') }}" class="nav-link active">
+        <i class="bi bi-plus-circle"></i> Buat Pengaduan
+    </a>
+    {{-- PERBAIKAN: Mengubah 'siswa.riwayat' menjadi 'siswa.pengaduan' agar sesuai dengan web.php --}}
+    <a href="{{ route('siswa.pengaduan') }}" class="nav-link">
+        <i class="bi bi-clock-history"></i> Riwayat
+    </a>
+@endsection
+
+
 @section('content')
 <div class="container-fluid">
     <div class="row">

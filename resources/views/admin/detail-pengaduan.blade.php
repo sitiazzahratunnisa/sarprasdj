@@ -17,6 +17,7 @@
     </div>
 
     <div class="row">
+        {{-- Kolom Kiri: Detail Laporan --}}
         <div class="col-md-8">
             <div class="card shadow mb-4">
                 <div class="card-header py-3 bg-white">
@@ -26,7 +27,7 @@
                     <table class="table table-borderless">
                         <tr>
                             <th width="30%">Pelapor</th>
-                            <td>: {{ $pengaduan->user->name }}</td>
+                            <td>: {{ $pengaduan->user->name ?? 'User Tidak Ditemukan' }}</td>
                         </tr>
                         <tr>
                             <th>Barang</th>
@@ -48,34 +49,43 @@
                             <th>Deskripsi</th>
                             <td>: <p class="mt-1">{{ $pengaduan->deskripsi }}</p></td>
                         </tr>
+                        {{-- Menampilkan Catatan Admin jika sudah ada --}}
+                        @if($pengaduan->catatan_admin)
+                        <tr class="table-info rounded">
+                            <th>Catatan Admin</th>
+                            <td>: <span class="text-dark font-italic">{{ $pengaduan->catatan_admin }}</span></td>
+                        </tr>
+                        @endif
                     </table>
                     
-                    @if($pengaduan->foto)
-                        <label class="fw-bold">Foto Bukti:</label>
-                        <div class="mt-2">
-                            <img src="{{ asset('storage/' . $pengaduan->foto) }}" class="img-fluid rounded border shadow-sm" style="max-height: 300px;">
-                        </div>
-                    @else
-                        <div class="alert alert-light border small text-muted">
-                            <i class="bi bi-image me-1"></i> Tidak ada foto bukti yang diunggah.
-                        </div>
-                    @endif
+                    <label class="fw-bold mt-3">Foto Bukti:</label>
+                    <div class="mt-2">
+                        @if($pengaduan->foto)
+                            <img src="{{ asset('storage/' . $pengaduan->foto) }}" class="img-fluid rounded border shadow-sm" style="max-height: 400px; object-fit: cover;">
+                        @else
+                            <div class="alert alert-light border small text-muted">
+                                <i class="bi bi-image me-1"></i> Tidak ada foto bukti yang diunggah.
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
 
+        {{-- Kolom Kanan: Update Status & Catatan --}}
         <div class="col-md-4">
             <div class="card shadow mb-4 border-left-primary">
                 <div class="card-header py-3 bg-white">
-                    <h6 class="m-0 font-weight-bold text-primary">Update Status</h6>
+                    <h6 class="m-0 font-weight-bold text-primary">Aksi Admin</h6>
                 </div>
                 <div class="card-body">
                     <form action="{{ route('admin.pengaduan.status', $pengaduan->id) }}" method="POST">
                         @csrf
                         @method('PATCH')
                         
+                        {{-- Status Saat Ini --}}
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Status Saat Ini:</label>
+                            <label class="form-label fw-bold small text-uppercase text-muted">Status Saat Ini:</label>
                             <div class="mb-2">
                                 @if($pengaduan->status == 'menunggu')
                                     <span class="badge bg-warning text-dark p-2">Menunggu Konfirmasi</span>
@@ -88,8 +98,7 @@
                                 @endif
                             </div>
                             
-                            {{-- Value harus sesuai dengan validasi di Controller: menunggu, diproses, selesai, ditolak --}}
-                            <select name="status" class="form-select mt-2" required>
+                            <select name="status" class="form-select" required>
                                 <option value="menunggu" {{ $pengaduan->status == 'menunggu' ? 'selected' : '' }}>Menunggu</option>
                                 <option value="diproses" {{ $pengaduan->status == 'diproses' ? 'selected' : '' }}>Diproses</option>
                                 <option value="selesai" {{ $pengaduan->status == 'selesai' ? 'selected' : '' }}>Selesai</option>
@@ -97,8 +106,15 @@
                             </select>
                         </div>
 
+                        {{-- Input Catatan Admin --}}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-uppercase text-muted">Catatan Admin:</label>
+                            <textarea name="catatan_admin" class="form-control" rows="4" placeholder="Contoh: Barang akan diperbaiki besok / Laporan ditolak karena data tidak lengkap...">{{ $pengaduan->catatan_admin }}</textarea>
+                            <div class="form-text text-muted small">Catatan ini akan dapat dilihat oleh pelapor.</div>
+                        </div>
+
                         <button type="submit" class="btn btn-primary w-100 shadow-sm">
-                            <i class="bi bi-check-circle me-1"></i> Simpan Perubahan
+                            <i class="bi bi-save me-1"></i> Simpan Perubahan
                         </button>
                     </form>
                 </div>

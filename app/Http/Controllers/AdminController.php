@@ -5,12 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Pengaduan;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Exports\PengaduanExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AdminController extends Controller
 {
-    /**
-     * Menampilkan ringkasan statistik di Dashboard Admin.
-     */
+    // ================= DASHBOARD =================
     public function dashboard()
     {
         $stats = [
@@ -21,13 +21,10 @@ class AdminController extends Controller
         ];
         
         $terbaru = Pengaduan::with('user')->latest()->take(10)->get();
-        
         return view('admin.dashboard', compact('stats', 'terbaru'));
     }
 
-    /**
-     * Menampilkan daftar semua pengaduan dengan fitur filter dan pencarian.
-     */
+    // ================= MANAJEMEN PENGADUAN =================
     public function pengaduan(Request $request)
     {
         $query = Pengaduan::with('user');
@@ -49,53 +46,56 @@ class AdminController extends Controller
     }
 
     /**
-     * Menampilkan detail pengaduan spesifik.
+     * Fitur Cetak Excel Rekap Pengaduan + Foto Bukti
      */
+    public function exportExcel(Request $request)
+    {
+        // Mengirimkan request filter ke class Export jika dibutuhkan di kemudian hari
+        return Excel::download(new PengaduanExport($request), 'rekap_sarpras_' . date('Y-m-d') . '.xlsx');
+    }
+
     public function detailPengaduan($id)
     {
         $pengaduan = Pengaduan::with('user')->findOrFail($id);
         return view('admin.detail-pengaduan', compact('pengaduan'));
     }
 
-    /**
-     * Memperbarui status pengaduan (Tanpa Catatan Admin).
-     */
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
             'status' => 'required|in:menunggu,diproses,selesai,ditolak',
+            'catatan_admin' => 'nullable|string'
         ]);
 
         $pengaduan = Pengaduan::findOrFail($id);
         $pengaduan->update([
-            'status'     => $request->status,
-            'handled_by' => auth()->id(),
-            'selesai_at' => $request->status === 'selesai' ? now() : null,
+            'status' => $request->status,
+            'catatan_admin' => $request->catatan_admin,
         ]);
 
-        return back()->with('success', 'Status pengaduan berhasil diperbarui.');
+        return redirect()->route('admin.pengaduan')->with('success', 'Status berhasil diperbarui!');
     }
 
-    // ================= FITUR DATA BARANG (INVENTARIS) =================
+    public function destroyPengaduan($id)
+    {
+        $pengaduan = Pengaduan::findOrFail($id);
+        $pengaduan->delete();
 
-    /**
-     * Menampilkan daftar barang (Menggunakan groupBy agar tombol aksi punya ID).
-     */
+        return redirect()->route('admin.pengaduan')->with('success', 'Laporan berhasil dihapus!');
+    }
+
+    // ================= DATA BARANG (INVENTARIS) =================
     public function dataBarang()
     {
-        // Menggunakan id agar tombol edit/hapus bisa berfungsi
         $barang = Pengaduan::select('id', 'nama_barang', 'kategori', 'lokasi')
             ->latest()
             ->get()
-            ->unique('nama_barang'); // Memastikan daftar barang tidak duplikat di tabel inventaris
+            ->unique('nama_barang');
             
         return view('admin.data-barang', compact('barang'));
     }
 
-    public function createBarang()
-    {
-        return view('admin.create-barang');
-    }
+    public function createBarang() { return view('admin.create-barang'); }
 
     public function storeBarang(Request $request)
     {
@@ -105,7 +105,6 @@ class AdminController extends Controller
             'lokasi'      => 'required',
         ]);
 
-        // Menyimpan barang baru ke tabel pengaduan sebagai data master inventaris
         Pengaduan::create([
             'user_id'     => auth()->id(),
             'nama_barang' => $request->nama_barang,
@@ -115,7 +114,7 @@ class AdminController extends Controller
             'status'      => 'selesai',
         ]);
 
-        return redirect()->route('admin.barang')->with('success', 'Barang berhasil ditambahkan ke inventaris');
+        return redirect()->route('admin.barang')->with('success', 'Barang berhasil ditambah!');
     }
 
     public function editBarang($id)
@@ -126,28 +125,19 @@ class AdminController extends Controller
 
     public function updateBarang(Request $request, $id)
     {
-        $request->validate([
-            'nama_barang' => 'required',
-            'kategori'    => 'required',
-            'lokasi'      => 'required',
-        ]);
-
         $barang = Pengaduan::findOrFail($id);
         $barang->update($request->only(['nama_barang', 'kategori', 'lokasi']));
-
-        return redirect()->route('admin.barang')->with('success', 'Data inventaris berhasil diperbarui');
+        return redirect()->route('admin.barang')->with('success', 'Data diperbarui!');
     }
 
     public function destroyBarang($id)
     {
         $barang = Pengaduan::findOrFail($id);
         $barang->delete();
-
-        return redirect()->route('admin.barang')->with('success', 'Barang berhasil dihapus dari inventaris');
+        return redirect()->route('admin.barang')->with('success', 'Barang dihapus!');
     }
 
-    // ================= FITUR DATA SISWA =================
-
+    // ================= DATA SISWA =================
     public function dataSiswa()
     {
         $siswa = User::where('role', 'siswa')->withCount('pengaduans')->paginate(20);
@@ -216,7 +206,6 @@ class AdminController extends Controller
     }
 
     // ================= LAPORAN =================
-
     public function laporan()
     {
         $data = Pengaduan::selectRaw('MONTH(created_at) as bulan, COUNT(*) as total, status')

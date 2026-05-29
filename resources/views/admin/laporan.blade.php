@@ -1,5 +1,27 @@
 @extends('layouts.app') {{-- Ganti ke 'layouts.admin' jika kamu punya layout khusus admin --}}
 
+@section('sidebar')
+    <a href="{{ route('admin.dashboard') }}" class="nav-link {{ Request::is('admin/dashboard') ? 'active' : '' }}">
+        <i class="bi bi-speedometer2"></i>Dashboard
+    </a>
+    <a href="{{ route('admin.pengaduan') }}" class="nav-link {{ Request::is('admin/pengaduan*') ? 'active' : '' }}">
+        <i class="bi bi-clipboard-check"></i>Pengaduan
+    </a>
+    <a href="{{ route('admin.barang') }}" class="nav-link {{ Request::is('admin/data-barang*') ? 'active' : '' }}">
+        <i class="bi bi-box-seam"></i>Data Barang
+    </a>
+    
+    <a href="{{ route('admin.lokasi') }}" class="nav-link {{ Request::is('admin/lokasi*') ? 'active' : '' }}">
+        <i class="bi bi-geo-alt"></i>Data Lokasi
+    </a>
+    <a href="{{ route('admin.siswa') }}" class="nav-link {{ Request::is('admin/data-siswa*') ? 'active' : '' }}">
+        <i class="bi bi-people"></i>Data Siswa
+    </a>
+    <a href="{{ route('admin.laporan') }}" class="nav-link {{ Request::is('admin/laporan*') ? 'active' : '' }}">
+        <i class="bi bi-bar-chart"></i>Laporan
+    </a>
+@endsection
+
 @section('content')
 <div class="container-fluid px-4">
     <h1 class="mt-4">Laporan Pengaduan</h1>

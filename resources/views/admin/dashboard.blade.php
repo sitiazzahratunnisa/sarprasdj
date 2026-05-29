@@ -2,19 +2,22 @@
 @section('title', 'Dashboard Admin')
 
 @section('sidebar')
-    <a href="{{ route('admin.dashboard') }}" class="nav-link active">
+    <a href="{{ route('admin.dashboard') }}" class="nav-link {{ Request::is('admin/dashboard') ? 'active' : '' }}">
         <i class="bi bi-speedometer2"></i>Dashboard
     </a>
-    <a href="{{ route('admin.pengaduan') }}" class="nav-link">
+    <a href="{{ route('admin.pengaduan') }}" class="nav-link {{ Request::is('admin/pengaduan*') ? 'active' : '' }}">
         <i class="bi bi-clipboard-check"></i>Pengaduan
     </a>
-    <a href="{{ route('admin.barang') }}" class="nav-link">
+    <a href="{{ route('admin.barang') }}" class="nav-link {{ Request::is('admin/data-barang*') ? 'active' : '' }}">
         <i class="bi bi-box-seam"></i>Data Barang
     </a>
-    <a href="{{ route('admin.siswa') }}" class="nav-link">
+    <a href="{{ route('admin.lokasi') }}" class="nav-link {{ Request::is('admin/lokasi*') ? 'active' : '' }}">
+        <i class="bi bi-geo-alt"></i>Data Lokasi
+    </a>
+    <a href="{{ route('admin.siswa') }}" class="nav-link {{ Request::is('admin/data-siswa*') ? 'active' : '' }}">
         <i class="bi bi-people"></i>Data Siswa
     </a>
-    <a href="{{ route('admin.laporan') }}" class="nav-link">
+    <a href="{{ route('admin.laporan') }}" class="nav-link {{ Request::is('admin/laporan*') ? 'active' : '' }}">
         <i class="bi bi-bar-chart"></i>Laporan
     </a>
 @endsection
@@ -52,7 +55,7 @@
 
 {{-- Tabel Pengaduan Terbaru --}}
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
         <span><i class="bi bi-clock-history me-2"></i>Pengaduan Terbaru</span>
         <a href="{{ route('admin.pengaduan') }}" class="btn btn-sm btn-outline-light" style="font-size:12px;">
             Lihat Semua
@@ -77,13 +80,23 @@
                     <tr>
                         <td>{{ $i + 1 }}</td>
                         <td>{{ $p->user->name }}</td>
-                        <td>{{ $p->nama_barang }}</td>
+                        <td class="fw-bold">{{ $p->nama_barang }}</td>
                         <td>{{ $p->lokasi }}</td>
                         <td>{{ $p->created_at->format('d M Y') }}</td>
                         <td>
-                            <span class="badge badge-{{ $p->status }} px-2 py-1" style="font-size:11px;border-radius:20px;">
-                                {{ ucfirst($p->status) }}
-                            </span>
+                            @if($p->status == 'pending' || $p->status == 'Menunggu')
+                                <span class="badge bg-warning text-dark px-2.5 py-1.5 fw-semibold" style="font-size:11px; border-radius:20px;">
+                                    Menunggu
+                                </span>
+                            @elseif($p->status == 'proses' || $p->status == 'Diproses' || $p->status == 'diproses')
+                                <span class="badge bg-info text-dark px-2.5 py-1.5 fw-semibold" style="font-size:11px; border-radius:20px;">
+                                    Diproses
+                                </span>
+                            @else
+                                <span class="badge bg-success text-white px-2.5 py-1.5 fw-semibold" style="font-size:11px; border-radius:20px;">
+                                    Selesai
+                                </span>
+                            @endif
                         </td>
                         <td>
                             <a href="{{ route('admin.pengaduan.detail', $p->id) }}"

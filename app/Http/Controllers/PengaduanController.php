@@ -1,71 +1,114 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Exports;
 
 use App\Models\Pengaduan;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithDrawings;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class PengaduanController extends Controller
+class PengaduanExport implements FromCollection, WithHeadings, WithMapping, WithDrawings, WithStyles
 {
-    public function index()
+    protected $pengaduanData;
+
+    public function __construct()
     {
-        $pengaduans = Pengaduan::where('user_id', auth()->id())->latest()->paginate(10);
-        return view('siswa.pengaduan', compact('pengaduans'));
+        // Mengambil semua data pengaduan beserta data user pelapornya
+        $this->pengaduanData = Pengaduan::with('user')->latest()->get();
     }
 
-    public function create()
+    public function collection()
     {
-        return view('siswa.buat-pengaduan');
+        return $this->pengaduanData;
     }
 
-    public function store(Request $request)
+    // 1. Membuat Judul Kolom Excel
+    public function headings(): array
     {
-        $request->validate([
-            'nama_barang' => 'required|string|max:150',
-            'kategori'    => 'required|in:Furnitur,Elektronik,Fasilitas,Lainnya',
-            'lokasi'      => 'required|string|max:150',
-            'deskripsi'   => 'required|string|min:10|max:1000',
-            'foto'        => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-        ], [
-            'nama_barang.required' => 'Nama barang wajib diisi.',
-            'kategori.required'    => 'Kategori wajib dipilih.',
-            'lokasi.required'      => 'Lokasi wajib diisi.',
-            'deskripsi.required'   => 'Deskripsi kerusakan wajib diisi.',
-            'deskripsi.min'        => 'Deskripsi minimal 10 karakter.',
-            'foto.image'           => 'File harus berupa gambar.',
-            'foto.max'             => 'Ukuran foto maksimal 2MB.',
-        ]);
+        return [
+            'No',
+            'Nama Pelapor',
+            'Nama Barang',
+            'Kategori',
+            'Lokasi / Ruangan',
+            'Deskripsi Kerusakan',
+            'Status',
+            'Foto Bukti' // Kolom H untuk Gambar/Foto
+        ];
+    }
 
-        $fotoPath = null;
-        if ($request->hasFile('foto')) {
-            $fotoPath = $request->file('foto')->store('pengaduan-foto', 'public');
+    // 2. Memetakan data dari database ke kolom teks Excel
+    public function map($pengaduan): array
+    {
+        static $rowNumber = 0;
+        $rowNumber++;
+
+        return [
+            $rowNumber,
+            $pengaduan->user->name ?? 'Anonim', // Mengambil nama user pelapor
+            $pengaduan->nama_barang,
+            $pengaduan->kategori,
+            $pengaduan->lokasi,
+            $pengaduan->deskripsi,
+            ucfirst($pengaduan->status), // Menampilkan status (Menunggu, Proses, Selesai)
+            '' // Kolom H dikosongkan karena akan ditempeli gambar lewat fungsi drawings()
+        ];
+    }
+
+    // 3. Menempelkan File Foto ke Kolom H
+    public function drawings()
+    {
+        $drawings = [];
+        
+        foreach ($this->pengaduanData as $index => $pengaduan) {
+            // Path mengarah ke folder storage/public/pengaduan-foto/... sesuai controller Anda
+            $fotoPath = public_path('storage/' . $pengaduan->foto); 
+
+            if ($pengaduan->foto && file_exists($fotoPath)) {
+                $drawing = new Drawing();
+                $drawing->setName('Foto Kerusakan');
+                $drawing->setDescription($pengaduan->nama_barang);
+                $drawing->setPath($fotoPath); 
+                $drawing->setHeight(55); // Tinggi gambar dalam pixel
+                
+                // Baris data dimulai dari baris ke-2 (Baris 1 adalah Heading)
+                $row = $index + 2; 
+                $drawing->setCoordinates('H' . $row); // Menaruh foto di kolom H
+                
+                // Posisi tengah sedikit di dalam cell
+                $drawing->setOffsetX(12);
+                $drawing->setOffsetY(6);
+
+                $drawings[] = $drawing;
+            }
         }
 
-        Pengaduan::create([
-            'user_id'     => auth()->id(),
-            'nama_barang' => $request->nama_barang,
-            'kategori'    => $request->kategori,
-            'lokasi'      => $request->lokasi,
-            'deskripsi'   => $request->deskripsi,
-            'foto'        => $fotoPath,
-            'status'      => 'menunggu',
-        ]);
-
-        return redirect()->route('siswa.pengaduan')
-            ->with('success', 'Pengaduan berhasil dikirim! Kami akan segera menindaklanjuti.');
+        return $drawings;
     }
 
-    public function show($id)
+    // 4. Mengatur Tinggi Baris Agar Cell Muat Gambar dan Rapih
+    public function styles(Worksheet $sheet)
     {
-        $pengaduan = Pengaduan::where('user_id', auth()->id())->findOrFail($id);
-        return view('siswa.detail-pengaduan', compact('pengaduan'));
-    }
+        $highestRow = $sheet->getHighestRow();
+        
+        // Atur tinggi baris judul (Heading)
+        $sheet->getRowDimension(1)->setRowHeight(28);
 
-    public function riwayat()
-    {
-        $pengaduans = Pengaduan::where('user_id', auth()->id())
-            ->latest()->paginate(15);
-        return view('siswa.riwayat', compact('pengaduans'));
+        // Atur semua baris data menjadi tinggi 65 pixel agar gambar tidak menumpuk
+        for ($i = 2; $i <= $highestRow; $i++) {
+            $sheet->getRowDimension($i)->setRowHeight(65);
+        }
+        
+        // Otomatis melebarkan kolom A sampai G sesuai panjang teks
+        foreach (range('A', 'G') as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+        
+        // Khusus kolom H (Foto) kita beri lebar manual yang pas
+        $sheet->getColumnDimension('H')->setWidth(18);
     }
 }
